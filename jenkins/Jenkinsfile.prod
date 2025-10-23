@@ -1,6 +1,10 @@
 pipeline {
     agent any
     
+    environment {
+        CONTAINER_REPO_URI = "863128715353.dkr.ecr.eu-central-1.amazonaws.com"
+    }
+    
     stages {
         stage('create-tags') {
             steps {
@@ -13,12 +17,10 @@ pipeline {
                     GIT_HASH = sh(returnStdout: true, script: 'echo "${GIT_COMMIT: -6}" | head -1').trim()
                     COMMIT_MESSAGE = sh(returnStdout: true, script: 'git log --format=%B -n 1 "${GIT_COMMIT}"').trim()
                     
-                    // Container repository URI
-                    CONTAINER_REPO_URI = "863128715353.dkr.ecr.eu-central-1.amazonaws.com"
-                    
                     echo "Committer: ${COMMITTER_USER} (${COMMITTER_EMAIL})"
                     echo "Commit Hash: ${GIT_HASH}"
                     echo "Commit Message: ${COMMIT_MESSAGE}"
+                    echo "Container Repo: ${CONTAINER_REPO_URI}"
                 }
                 
                 // Send start notification
@@ -42,8 +44,8 @@ pipeline {
                 }
                 sh """
                     docker build -f docker/Dockerfile.backend.prod \
-                    -t \$CONTAINER_REPO_URI/ai-assistant-backend-prod:latest \
-                    -t \$CONTAINER_REPO_URI/ai-assistant-backend-prod:\$BUILD_NUMBER .
+                    -t ${CONTAINER_REPO_URI}/ai-assistant-backend-prod:latest \
+                    -t ${CONTAINER_REPO_URI}/ai-assistant-backend-prod:${BUILD_NUMBER} .
                 """
             }
         }
@@ -55,8 +57,8 @@ pipeline {
                 }
                 sh """
                     docker build -f docker/Dockerfile.frontend.prod \
-                    -t \$CONTAINER_REPO_URI/ai-assistant-frontend-prod:latest \
-                    -t \$CONTAINER_REPO_URI/ai-assistant-frontend-prod:\$BUILD_NUMBER .
+                    -t ${CONTAINER_REPO_URI}/ai-assistant-frontend-prod:latest \
+                    -t ${CONTAINER_REPO_URI}/ai-assistant-frontend-prod:${BUILD_NUMBER} .
                 """
             }
         }
@@ -67,11 +69,11 @@ pipeline {
                     FAILED_STAGE = "${STAGE_NAME}"
                 }
                 sh """
-                    aws ecr get-login-password --region eu-central-1 | docker login --username AWS --password-stdin 863128715353.dkr.ecr.eu-central-1.amazonaws.com
-                    docker push \$CONTAINER_REPO_URI/ai-assistant-backend-prod:latest
-                    docker push \$CONTAINER_REPO_URI/ai-assistant-backend-prod:\$BUILD_NUMBER
-                    docker push \$CONTAINER_REPO_URI/ai-assistant-frontend-prod:latest
-                    docker push \$CONTAINER_REPO_URI/ai-assistant-frontend-prod:\$BUILD_NUMBER
+                    aws ecr get-login-password --region eu-central-1 | docker login --username AWS --password-stdin ${CONTAINER_REPO_URI}
+                    docker push ${CONTAINER_REPO_URI}/ai-assistant-backend-prod:latest
+                    docker push ${CONTAINER_REPO_URI}/ai-assistant-backend-prod:${BUILD_NUMBER}
+                    docker push ${CONTAINER_REPO_URI}/ai-assistant-frontend-prod:latest
+                    docker push ${CONTAINER_REPO_URI}/ai-assistant-frontend-prod:${BUILD_NUMBER}
                 """
             }
         }
@@ -82,8 +84,8 @@ pipeline {
                     FAILED_STAGE = "${STAGE_NAME}"
                 }
                 sh """
-                    sed -ie "s|BACKEND_STRING_TO_BE_REPLACED|\$CONTAINER_REPO_URI/ai-assistant-backend-prod:\$BUILD_NUMBER|g" kubernetes/prod/backend-deployment.yaml
-                    sed -ie "s|FRONTEND_STRING_TO_BE_REPLACED|\$CONTAINER_REPO_URI/ai-assistant-frontend-prod:\$BUILD_NUMBER|g" kubernetes/prod/frontend-deployment.yaml
+                    sed -ie "s|BACKEND_STRING_TO_BE_REPLACED|${CONTAINER_REPO_URI}/ai-assistant-backend-prod:${BUILD_NUMBER}|g" kubernetes/prod/backend-deployment.yaml
+                    sed -ie "s|FRONTEND_STRING_TO_BE_REPLACED|${CONTAINER_REPO_URI}/ai-assistant-frontend-prod:${BUILD_NUMBER}|g" kubernetes/prod/frontend-deployment.yaml
                 """
             }
         }
@@ -134,7 +136,7 @@ pipeline {
                         # Create ECR secret
                         kubectl delete secret -n ai-assistant-prod ai-assistant-ecr || true
                         kubectl create secret docker-registry ai-assistant-ecr \
-                            --docker-server=863128715353.dkr.ecr.eu-central-1.amazonaws.com \
+                            --docker-server=${CONTAINER_REPO_URI} \
                             --docker-username=AWS \
                             --docker-password=\$(aws ecr get-login-password) \
                             --namespace=ai-assistant-prod \
