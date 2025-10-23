@@ -1,0 +1,190 @@
+pipeline {
+    agent any
+    
+    stages {
+        stage('create-tags') {
+            steps {
+                script {
+                    FAILED_STAGE = "${STAGE_NAME}"
+                    
+                    // Extract git metadata
+                    COMMITTER_EMAIL = sh(returnStdout: true, script: 'git log --format="%ae" | head -1').trim()
+                    COMMITTER_USER = sh(returnStdout: true, script: 'git log --format="%an" | head -1').trim()
+                    GIT_HASH = sh(returnStdout: true, script: 'echo "${GIT_COMMIT: -6}" | head -1').trim()
+                    COMMIT_MESSAGE = sh(returnStdout: true, script: 'git log --format=%B -n 1 "${GIT_COMMIT}"').trim()
+                    
+                    // Container repository URI
+                    CONTAINER_REPO_URI = "863128715353.dkr.ecr.eu-central-1.amazonaws.com"
+                    
+                    echo "Committer: ${COMMITTER_USER} (${COMMITTER_EMAIL})"
+                    echo "Commit Hash: ${GIT_HASH}"
+                    echo "Commit Message: ${COMMIT_MESSAGE}"
+                }
+                
+                // Send start notification
+                withCredentials([
+                    string(credentialsId: 'TOKEN', variable: 'TOKEN'), 
+                    string(credentialsId: 'CHAT_ID', variable: 'CHAT_ID')
+                ]) {
+                    sh """
+                        curl -iX GET https://api.telegram.org/bot\$TOKEN/sendMessage \
+                        -d chat_id=\$CHAT_ID \
+                        -d text="Pipeline: \$JOB_BASE_NAME 🚀STARTED\\nBuild url: \$BUILD_URL\\n✉️Message: \$COMMIT_MESSAGE\\nUser/email: \$COMMITTER_USER/\$COMMITTER_EMAIL\\nID: \$GIT_HASH"
+                    """
+                }
+            }
+        }
+        
+        stage('Build backend') {
+            steps {
+                script {
+                    FAILED_STAGE = "${STAGE_NAME}"
+                }
+                sh """
+                    docker build -f docker/Dockerfile.backend.staging \
+                    -t \$CONTAINER_REPO_URI/ai-assistant-backend-staging:latest \
+                    -t \$CONTAINER_REPO_URI/ai-assistant-backend-staging:\$BUILD_NUMBER .
+                """
+            }
+        }
+        
+        stage('Build frontend') {
+            steps {
+                script {
+                    FAILED_STAGE = "${STAGE_NAME}"
+                }
+                sh """
+                    docker build -f docker/Dockerfile.frontend.staging \
+                    -t \$CONTAINER_REPO_URI/ai-assistant-frontend-staging:latest \
+                    -t \$CONTAINER_REPO_URI/ai-assistant-frontend-staging:\$BUILD_NUMBER .
+                """
+            }
+        }
+        
+        stage('push-to-repo') {
+            steps {
+                script {
+                    FAILED_STAGE = "${STAGE_NAME}"
+                }
+                sh """
+                    aws ecr get-login-password --region eu-central-1 | docker login --username AWS --password-stdin 863128715353.dkr.ecr.eu-central-1.amazonaws.com
+                    docker push \$CONTAINER_REPO_URI/ai-assistant-backend-staging:latest
+                    docker push \$CONTAINER_REPO_URI/ai-assistant-backend-staging:\$BUILD_NUMBER
+                    docker push \$CONTAINER_REPO_URI/ai-assistant-frontend-staging:latest
+                    docker push \$CONTAINER_REPO_URI/ai-assistant-frontend-staging:\$BUILD_NUMBER
+                """
+            }
+        }
+        
+        stage('sed-manifest-files') {
+            steps {
+                script {
+                    FAILED_STAGE = "${STAGE_NAME}"
+                }
+                sh """
+                    sed -ie "s|BACKEND_STRING_TO_BE_REPLACED|\$CONTAINER_REPO_URI/ai-assistant-backend-staging:\$BUILD_NUMBER|g" kubernetes/staging/backend-deployment.yaml
+                    sed -ie "s|FRONTEND_STRING_TO_BE_REPLACED|\$CONTAINER_REPO_URI/ai-assistant-frontend-staging:\$BUILD_NUMBER|g" kubernetes/staging/frontend-deployment.yaml
+                """
+            }
+        }
+        
+        stage('if-migrations-true') {
+            steps {
+                script {
+                    FAILED_STAGE = "${STAGE_NAME}"
+                    if (COMMIT_MESSAGE == "DO_MIGRATIONS") {
+                        echo 'Migration triggered by commit message'
+                        sh """
+                            sed -ie "s|MIGRATIONS_TRIGGER_TO_BE_REPLACED|TRUE|g" kubernetes/staging/backend-deployment.yaml
+                        """
+                        withCredentials([
+                            string(credentialsId: 'TOKEN', variable: 'TOKEN'), 
+                            string(credentialsId: 'CHAT_ID', variable: 'CHAT_ID')
+                        ]) {
+                            sh """
+                                curl -iX GET https://api.telegram.org/bot\$TOKEN/sendMessage \
+                                -d chat_id=\$CHAT_ID \
+                                -d text='🔔MIGRATIONS WILL HAPPEN🔔\\nID: \$GIT_HASH'
+                            """
+                        }
+                    } else {
+                        echo 'No migration triggered'
+                        sh """
+                            sed -ie "s|MIGRATIONS_TRIGGER_TO_BE_REPLACED|FALSE|g" kubernetes/staging/backend-deployment.yaml
+                        """
+                    }
+                }
+            }
+        }
+        
+        stage('Deploy') {
+            steps {
+                script {
+                    FAILED_STAGE = "${STAGE_NAME}"
+                }
+                withKubeCredentials(kubectlCredentials: [[
+                    caCertificate: '', 
+                    clusterName: 'microk8s-cluster', 
+                    contextName: '', 
+                    credentialsId: 'kuber-host-token', 
+                    namespace: 'ai-assistant-staging', 
+                    serverUrl: 'https://10.200.0.11:16443'
+                ]]) {
+                    sh """
+                        # Create ECR secret
+                        kubectl delete secret -n ai-assistant-staging ai-assistant-ecr || true
+                        kubectl create secret docker-registry ai-assistant-ecr \
+                            --docker-server=863128715353.dkr.ecr.eu-central-1.amazonaws.com \
+                            --docker-username=AWS \
+                            --docker-password=\$(aws ecr get-login-password) \
+                            --namespace=ai-assistant-staging \
+                            --save-config=true
+                        
+                        # Apply Kubernetes manifests
+                        kubectl apply -f kubernetes/staging/namespace.yaml
+                        kubectl apply -f kubernetes/staging/redis-rabbitmq.yaml
+                        kubectl apply -f kubernetes/staging/backend-deployment.yaml
+                        kubectl apply -f kubernetes/staging/frontend-deployment.yaml
+                        kubectl apply -f kubernetes/staging/ingress.yaml
+                    """
+                }
+            }
+        }
+        
+        stage('cleanup') {
+            steps {
+                script {
+                    FAILED_STAGE = "${STAGE_NAME}"
+                }
+                sh 'docker system prune -f'
+            }
+        }
+    }
+    
+    post {
+        failure {
+            withCredentials([
+                string(credentialsId: 'TOKEN', variable: 'TOKEN'), 
+                string(credentialsId: 'CHAT_ID', variable: 'CHAT_ID')
+            ]) {
+                sh """
+                    curl -iX GET https://api.telegram.org/bot\$TOKEN/sendMessage \
+                    -d chat_id=\$CHAT_ID \
+                    -d text="Pipeline: \$JOB_BASE_NAME ❌FAILED\\nBuild url: \$BUILD_URL\\n✉️Message: \$COMMIT_MESSAGE\\nFAILED STAGE: \$FAILED_STAGE\\nID: \$GIT_HASH"
+                """
+            }
+        }
+        success {
+            withCredentials([
+                string(credentialsId: 'TOKEN', variable: 'TOKEN'), 
+                string(credentialsId: 'CHAT_ID', variable: 'CHAT_ID')
+            ]) {
+                sh """
+                    curl -iX GET https://api.telegram.org/bot\$TOKEN/sendMessage \
+                    -d chat_id=\$CHAT_ID \
+                    -d text='Pipeline: \$JOB_BASE_NAME ✅SUCCEEDED\\nID: \$GIT_HASH'
+                """
+            }
+        }
+    }
+}

@@ -1,0 +1,35 @@
+FROM python:3.12.4-alpine
+
+WORKDIR /backend
+
+# Copy dependency files
+COPY dashboard-backend/app/pyproject.toml ./
+COPY dashboard-backend/app/poetry.lock ./
+
+# Install dependencies
+RUN pip install poetry==1.8.3 && poetry config virtualenvs.create false && poetry install --no-root
+RUN apk update
+RUN apk add vim
+
+# Copy application code
+COPY dashboard-backend/app/app ./app
+COPY dashboard-backend/app/api ./api
+COPY dashboard-backend/app/core ./core
+COPY dashboard-backend/app/database ./database
+COPY dashboard-backend/app/tests ./tests
+COPY dashboard-backend/app/alembic.ini ./
+COPY dashboard-backend/app/main.py ./main.py
+
+# Copy migrations
+RUN mkdir -p /backend/migrations/versions
+COPY dashboard-backend/app/migrations/ ./migrations/
+
+# Copy startup scripts
+COPY scripts/start-prod.sh ./
+COPY scripts/load_env.py ./
+
+# Create log directory
+RUN mkdir /log
+RUN mkdir log
+
+CMD ["sh", "start-prod.sh"]

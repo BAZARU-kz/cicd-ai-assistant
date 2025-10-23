@@ -1,0 +1,59 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: ai-assistant-deploy-frontend-prod
+  namespace: ai-assistant-prod
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ai-assistant-prod-frontend
+  template:
+    metadata:
+      labels:
+        app: ai-assistant-prod-frontend
+    spec:
+      containers:
+      - name: frontend-prod
+        image: FRONTEND_STRING_TO_BE_REPLACED
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 3000
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      imagePullSecrets:
+      - name: ai-assistant-ecr
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-assistant-service-frontend-prod
+  namespace: ai-assistant-prod
+  labels:
+    app: ai-assistant-prod-frontend
+spec:
+  type: ClusterIP
+  selector:
+    app: ai-assistant-prod-frontend
+  ports:
+  - name: http
+    protocol: TCP
+    port: 3000
+    targetPort: 3000
