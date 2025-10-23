@@ -4,13 +4,13 @@ FROM node:18-alpine as build
 WORKDIR /app
 
 # Copy package files
-COPY dashboard-frontend/package*.json ./
+COPY ai-assistant/dashboard-frontend/package*.json ./
 
 # Install all dependencies (including dev dependencies for build)
 RUN npm ci
 
 # Copy source code
-COPY dashboard-frontend/ .
+COPY ai-assistant/dashboard-frontend/ .
 
 # Set build-time environment variable for staging
 ARG VITE_API_BASE_URL=https://ai-assistant-staging.zymran.com/api/v1

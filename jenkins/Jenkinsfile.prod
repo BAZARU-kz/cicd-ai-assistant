@@ -6,16 +6,30 @@ pipeline {
     }
     
     stages {
+        stage('Checkout Application') {
+            steps {
+                script {
+                    FAILED_STAGE = "${STAGE_NAME}"
+                    // Checkout the main application repository
+                    dir('ai-assistant') {
+                        git branch: 'main', credentialsId: 'ssh_k', url: 'git@github.com:nurzhanizbassov/ai-assistant.git'
+                    }
+                }
+            }
+        }
+        
         stage('create-tags') {
             steps {
                 script {
                     FAILED_STAGE = "${STAGE_NAME}"
                     
-                    // Extract git metadata
-                    COMMITTER_EMAIL = sh(returnStdout: true, script: 'git log --format="%ae" | head -1').trim()
-                    COMMITTER_USER = sh(returnStdout: true, script: 'git log --format="%an" | head -1').trim()
-                    GIT_HASH = sh(returnStdout: true, script: 'echo "${GIT_COMMIT: -6}" | head -1').trim()
-                    COMMIT_MESSAGE = sh(returnStdout: true, script: 'git log --format=%B -n 1 "${GIT_COMMIT}"').trim()
+                    // Extract git metadata from ai-assistant repository
+                    dir('ai-assistant') {
+                        COMMITTER_EMAIL = sh(returnStdout: true, script: 'git log --format="%ae" | head -1').trim()
+                        COMMITTER_USER = sh(returnStdout: true, script: 'git log --format="%an" | head -1').trim()
+                        GIT_HASH = sh(returnStdout: true, script: 'git log --format="%ae" | head -1').trim()
+                        COMMIT_MESSAGE = sh(returnStdout: true, script: 'git log --format=%B -n 1 HEAD').trim()
+                    }
                     
                     echo "Committer: ${COMMITTER_USER} (${COMMITTER_EMAIL})"
                     echo "Commit Hash: ${GIT_HASH}"

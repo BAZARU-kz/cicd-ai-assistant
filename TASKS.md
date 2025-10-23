@@ -107,6 +107,10 @@
 - [ ] Create vault-url secret
 
 ### Jenkins Configuration
+- [ ] **CRITICAL**: Configure multi-repository setup (see JENKINS_SETUP.md)
+  - [ ] Install Multiple SCM plugin OR
+  - [ ] Configure pipeline with checkout steps OR  
+  - [ ] Copy CI/CD files to ai-assistant repository
 - [ ] Create Jenkins pipeline jobs
   - [ ] AI-Assistant-Staging pipeline
   - [ ] AI-Assistant-Production pipeline

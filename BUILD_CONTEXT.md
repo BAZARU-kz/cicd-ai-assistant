@@ -1,15 +1,19 @@
 # Build Context Instructions
 
-## Important: Repository Setup
+## Important: Jenkins Multi-Repository Setup
 
-The Jenkins pipeline must be configured to build from the **ai-assistant** repository, not the cicd-ai-assistant repository.
+The Jenkins pipeline needs access to BOTH repositories:
+- `ai-assistant` (main application code)
+- `cicd-ai-assistant` (CI/CD configurations)
+
+**See JENKINS_SETUP.md for detailed Jenkins configuration instructions.**
 
 ## Setup Steps
 
 ### 1. Repository Structure
 You should have both repositories in the same parent directory:
 ```
-parent-directory/
+/home/dara/repos/newchat/           # <- BUILD FROM THIS DIRECTORY
 ├── ai-assistant/                    # Main application repository
 │   ├── dashboard-backend/
 │   ├── dashboard-frontend/
@@ -20,6 +24,8 @@ parent-directory/
     ├── docker/
     └── scripts/
 ```
+
+**IMPORTANT**: All Docker builds must be run from `/home/dara/repos/newchat/` (the parent directory containing both repositories).
 
 ### 2. Jenkins Job Configuration
 
