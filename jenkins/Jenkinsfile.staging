@@ -43,7 +43,7 @@ pipeline {
                     FAILED_STAGE = "${STAGE_NAME}"
                 }
                 sh """
-                    docker build -f docker/Dockerfile.backend.staging \
+                    docker build -f cicd-ai-assistant/docker/Dockerfile.backend.staging \
                     -t ${CONTAINER_REPO_URI}/ai-assistant-backend-staging:latest \
                     -t ${CONTAINER_REPO_URI}/ai-assistant-backend-staging:${BUILD_NUMBER} .
                 """
@@ -56,7 +56,7 @@ pipeline {
                     FAILED_STAGE = "${STAGE_NAME}"
                 }
                 sh """
-                    docker build -f docker/Dockerfile.frontend.staging \
+                    docker build -f cicd-ai-assistant/docker/Dockerfile.frontend.staging \
                     -t ${CONTAINER_REPO_URI}/ai-assistant-frontend-staging:latest \
                     -t ${CONTAINER_REPO_URI}/ai-assistant-frontend-staging:${BUILD_NUMBER} .
                 """
@@ -84,8 +84,8 @@ pipeline {
                     FAILED_STAGE = "${STAGE_NAME}"
                 }
                 sh """
-                    sed -ie "s|BACKEND_STRING_TO_BE_REPLACED|${CONTAINER_REPO_URI}/ai-assistant-backend-staging:${BUILD_NUMBER}|g" kubernetes/staging/backend-deployment.yaml
-                    sed -ie "s|FRONTEND_STRING_TO_BE_REPLACED|${CONTAINER_REPO_URI}/ai-assistant-frontend-staging:${BUILD_NUMBER}|g" kubernetes/staging/frontend-deployment.yaml
+                    sed -ie "s|BACKEND_STRING_TO_BE_REPLACED|${CONTAINER_REPO_URI}/ai-assistant-backend-staging:${BUILD_NUMBER}|g" cicd-ai-assistant/kubernetes/staging/backend-deployment.yaml
+                    sed -ie "s|FRONTEND_STRING_TO_BE_REPLACED|${CONTAINER_REPO_URI}/ai-assistant-frontend-staging:${BUILD_NUMBER}|g" cicd-ai-assistant/kubernetes/staging/frontend-deployment.yaml
                 """
             }
         }
@@ -97,7 +97,7 @@ pipeline {
                     if (COMMIT_MESSAGE == "DO_MIGRATIONS") {
                         echo 'Migration triggered by commit message'
                         sh """
-                            sed -ie "s|MIGRATIONS_TRIGGER_TO_BE_REPLACED|TRUE|g" kubernetes/staging/backend-deployment.yaml
+                            sed -ie "s|MIGRATIONS_TRIGGER_TO_BE_REPLACED|TRUE|g" cicd-ai-assistant/kubernetes/staging/backend-deployment.yaml
                         """
                         withCredentials([
                             string(credentialsId: 'TOKEN', variable: 'TOKEN'), 
@@ -112,7 +112,7 @@ pipeline {
                     } else {
                         echo 'No migration triggered'
                         sh """
-                            sed -ie "s|MIGRATIONS_TRIGGER_TO_BE_REPLACED|FALSE|g" kubernetes/staging/backend-deployment.yaml
+                            sed -ie "s|MIGRATIONS_TRIGGER_TO_BE_REPLACED|FALSE|g" cicd-ai-assistant/kubernetes/staging/backend-deployment.yaml
                         """
                     }
                 }
@@ -143,11 +143,11 @@ pipeline {
                             --save-config=true
                         
                         # Apply Kubernetes manifests
-                        kubectl apply -f kubernetes/staging/namespace.yaml
-                        kubectl apply -f kubernetes/staging/redis-rabbitmq.yaml
-                        kubectl apply -f kubernetes/staging/backend-deployment.yaml
-                        kubectl apply -f kubernetes/staging/frontend-deployment.yaml
-                        kubectl apply -f kubernetes/staging/ingress.yaml
+                        kubectl apply -f cicd-ai-assistant/kubernetes/staging/namespace.yaml
+                        kubectl apply -f cicd-ai-assistant/kubernetes/staging/redis-rabbitmq.yaml
+                        kubectl apply -f cicd-ai-assistant/kubernetes/staging/backend-deployment.yaml
+                        kubectl apply -f cicd-ai-assistant/kubernetes/staging/frontend-deployment.yaml
+                        kubectl apply -f cicd-ai-assistant/kubernetes/staging/ingress.yaml
                     """
                 }
             }

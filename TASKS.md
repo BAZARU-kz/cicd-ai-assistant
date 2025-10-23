@@ -55,6 +55,8 @@
 - [x] Added proper error handling and stage failure tracking
 - [x] Configured cleanup stage for Docker system pruning
 - [x] **FIXED**: Jenkins environment variable scoping for CONTAINER_REPO_URI
+- [x] **FIXED**: Docker build context - builds from ai-assistant repository root
+- [x] **FIXED**: Dockerfile paths to use original ai-assistant structure + cicd scripts
 
 ### Ingress Controller Setup
 - [x] Created complete nginx-ingress-controller.yaml with RBAC
@@ -200,12 +202,13 @@ This CI/CD pipeline provides a complete deployment solution for the AI Assistant
 - **Networking**: ClusterIP services with ingress for external access
 - **Resource Management**: Proper limits and requests for all containers
 
-### Files Created (Total: 23 files)
+### Files Created (Total: 24 files)
 ```
 cicd-ai-assistant/
 ├── README.md                          # Project overview and architecture
 ├── SETUP.md                          # Step-by-step installation guide  
 ├── TASKS.md                          # This progress tracking file
+├── BUILD_CONTEXT.md                  # Build context and repository setup guide
 ├── jenkins/
 │   ├── Jenkinsfile.staging          # 7-stage staging pipeline
 │   └── Jenkinsfile.prod             # 7-stage production pipeline
