@@ -1,0 +1,201 @@
+# caddy-config.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: caddy-config
+data:
+  Caddyfile: |
+
+
+    jenkins.zymran.com {
+        reverse_proxy http://10.200.0.5:8080
+    }
+    vault1.poc.zymran.com {
+        reverse_proxy http://10.200.0.5:8200
+    }
+
+    ai-assistant-staging.zymran.com {
+        encode gzip
+        
+        header {
+            Access-Control-Allow-Origin *
+            Access-Control-Allow-Credentials true
+            Access-Control-Allow-Methods *
+            Access-Control-Allow-Headers *
+        }
+        route /api/v1/* {
+            header >Location http:// https://
+            reverse_proxy http://ai-assistant-service-backend-staging.ai-assistant-staging.svc.cluster.local:8000 {
+                header_up X-Forwarded-Proto {scheme}
+                header_up Host {host}
+            }
+        }
+        route /docs {
+            reverse_proxy http://ai-assistant-service-backend-staging.ai-assistant-staging.svc.cluster.local:8000
+        }
+        route /* {
+            header >Location http:// https://
+            reverse_proxy http://ai-assistant-service-frontend-staging.ai-assistant-staging.svc.cluster.local:3000 {
+                header_up X-Forwarded-Proto {scheme}
+                header_up Host {host}
+            }
+        }
+    }
+
+    https://staging-front.dev.zymran.com {
+        encode gzip
+
+        header {
+            Access-Control-Allow-Origin *
+            Access-Control-Allow-Credentials true
+            Access-Control-Allow-Methods *
+            Access-Control-Allow-Headers *
+        }
+
+        route /api/v1/* {
+            header >Location http:// https://
+            reverse_proxy http://jazu-service-backend-staging.jazu-staging.svc.cluster.local:8000 {
+                header_up X-Forwarded-Proto {scheme}
+                header_up Host {host}
+            }
+        }
+        route /docs {
+            reverse_proxy http://jazu-service-backend-staging.jazu-staging.svc.cluster.local:8000
+        }
+        route /* {
+            header >Location http:// https://
+            reverse_proxy http://jazu-service-frontend-staging.jazu-staging.svc.cluster.local {
+                header_up X-Forwarded-Proto {scheme}
+                header_up Host {host}
+            }
+        }
+    }
+
+    webrtc-staging.zymran.com {
+        # Handle CORS preflight requests first
+        @preflight {
+            method OPTIONS
+        }
+        
+        handle @preflight {
+            header {
+                Access-Control-Allow-Origin "https://staging-front.dev.zymran.com"
+                Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+                Access-Control-Allow-Headers "Content-Type, Authorization"
+                Access-Control-Allow-Credentials true
+            }
+            respond "" 204
+        }
+        
+        # Your existing IP restriction logic
+        @allowed {
+            remote_ip 10.0.0.0/8 192.168.0.0/16 172.16.0.0/12 79.134.37.173
+        }
+        
+        handle @allowed {
+            reverse_proxy http://jazu-service-zaibal-backend-staging.jazu-staging.svc.cluster.local:9000
+        }
+        
+        handle {
+            respond "Access Denied" 403
+        }
+    }
+
+
+    https://staging-front.dev.zymran.kz {
+        encode gzip
+        
+        header {
+            Access-Control-Allow-Origin *
+            Access-Control-Allow-Credentials true
+            Access-Control-Allow-Methods *
+            Access-Control-Allow-Headers *
+        }
+        route /api/v1/* {
+            header >Location http:// https://
+            reverse_proxy http://jazu-service-backend-staging.jazu-staging.svc.cluster.local:8000 {
+                header_up X-Forwarded-Proto {scheme}
+                header_up Host {host}
+            }
+        }
+        route /docs {
+            reverse_proxy http://jazu-service-backend-staging.jazu-staging.svc.cluster.local:8000
+        }
+        route /* {
+            header >Location http:// https://
+            reverse_proxy http://jazu-service-frontend-staging.jazu-staging.svc.cluster.local {
+                header_up X-Forwarded-Proto {scheme}
+                header_up Host {host}
+            }
+        }
+    }
+
+    https://zymran.com {
+        encode gzip
+        route /api/v1/* {
+            header >Location http:// https://
+            reverse_proxy http://jazu-service-backend-prod.jazu-prod.svc.cluster.local:8000 {
+                header_up X-Forwarded-Proto {scheme}
+                header_up Host {host}
+            }
+        }
+        route /docs {
+            reverse_proxy http://jazu-service-backend-prod.jazu-prod.svc.cluster.local:8000
+        }
+        route /* {
+            header >Location http:// https://
+            reverse_proxy http://jazu-service-frontend-prod.jazu-prod.svc.cluster.local {
+                header_up X-Forwarded-Proto {scheme}
+                header_up Host {host}
+            }
+        }
+    }
+
+    https://zymran.kz {
+        encode gzip
+        route /api/v1/* {
+            header >Location http:// https://
+            reverse_proxy http://jazu-service-backend-prod.jazu-prod.svc.cluster.local:8000 {
+                header_up X-Forwarded-Proto {scheme}
+                header_up Host {host}
+            }
+        }
+        route /docs {
+            reverse_proxy http://jazu-service-backend-prod.jazu-prod.svc.cluster.local:8000
+        }
+        route /* {
+            header >Location http:// https://
+            reverse_proxy http://jazu-service-frontend-prod.jazu-prod.svc.cluster.local {
+                header_up X-Forwarded-Proto {scheme}
+                header_up Host {host}
+            }
+        }
+    }
+
+    ai-assistant-prod.zymran.com {
+        encode gzip
+        
+        header {
+            Access-Control-Allow-Origin *
+            Access-Control-Allow-Credentials true
+            Access-Control-Allow-Methods *
+            Access-Control-Allow-Headers *
+        }
+        route /api/v1/* {
+            header >Location http:// https://
+            reverse_proxy http://ai-assistant-service-backend-prod.ai-assistant-prod.svc.cluster.local:8000 {
+                header_up X-Forwarded-Proto {scheme}
+                header_up Host {host}
+            }
+        }
+        route /docs {
+            reverse_proxy http://ai-assistant-service-backend-prod.ai-assistant-prod.svc.cluster.local:8000
+        }
+        route /* {
+            header >Location http:// https://
+            reverse_proxy http://ai-assistant-service-frontend-prod.ai-assistant-prod.svc.cluster.local:3000 {
+                header_up X-Forwarded-Proto {scheme}
+                header_up Host {host}
+            }
+        }
+    }

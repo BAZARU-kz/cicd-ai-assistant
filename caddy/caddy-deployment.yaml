@@ -1,0 +1,49 @@
+# caddy-pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: caddy-data-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  # Uses default storage class (microk8s-hostpath)
+
+---
+# caddy-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: caddy-ingress
+  labels:
+    app: caddy-ingress
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: caddy-ingress
+  template:
+    metadata:
+      labels:
+        app: caddy-ingress
+    spec:
+      containers:
+        - name: caddy
+          image: caddy:latest
+          ports:
+            - containerPort: 80
+            - containerPort: 443
+          volumeMounts:
+            - name: caddy-config
+              mountPath: /etc/caddy
+            - name: caddy-data
+              mountPath: /data
+      volumes:
+        - name: caddy-config
+          configMap:
+            name: caddy-config
+        - name: caddy-data
+          persistentVolumeClaim:
+            claimName: caddy-data-pvc
