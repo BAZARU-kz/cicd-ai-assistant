@@ -23,6 +23,17 @@ data:
             Access-Control-Allow-Methods *
             Access-Control-Allow-Headers *
         }
+        
+        # Voice service routes - MUST come before general /api/v1/*
+        route /api/v1/voice* {
+            header >Location http:// https://
+            reverse_proxy http://ai-assistant-service-voice-service-staging.ai-assistant-staging.svc.cluster.local:8004 {
+                header_up X-Forwarded-Proto {scheme}
+                header_up Host {host}
+            }
+        }
+        
+        # General API routes
         route /api/v1/* {
             header >Location http:// https://
             reverse_proxy http://ai-assistant-service-backend-staging.ai-assistant-staging.svc.cluster.local:8000 {
@@ -181,6 +192,17 @@ data:
             Access-Control-Allow-Methods *
             Access-Control-Allow-Headers *
         }
+        
+        # Voice service routes - MUST come before general /api/v1/*
+        route /api/v1/voice* {
+            header >Location http:// https://
+            reverse_proxy http://ai-assistant-service-voice-service-prod.ai-assistant-prod.svc.cluster.local:8004 {
+                header_up X-Forwarded-Proto {scheme}
+                header_up Host {host}
+            }
+        }
+        
+        # General API routes
         route /api/v1/* {
             header >Location http:// https://
             reverse_proxy http://ai-assistant-service-backend-prod.ai-assistant-prod.svc.cluster.local:8000 {
