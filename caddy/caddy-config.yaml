@@ -32,6 +32,17 @@ data:
                 header_up Host {host}
             }
         }
+
+        # Chat backend routes - MUST come before general /api/v1/*
+        route /api/v1/chat* {
+            header >Location http:// https://
+            reverse_proxy http://ai-assistant-service-chat-backend-prod.ai-assistant-prod.svc.cluster.local:8002 {
+                header_up X-Forwarded-Proto {scheme}
+                header_up Host {host}
+                header_up Upgrade {http.request.header.Upgrade}
+                header_up Connection {http.request.header.Connection}
+            }
+        }
         
         # General API routes
         route /api/v1/* {
