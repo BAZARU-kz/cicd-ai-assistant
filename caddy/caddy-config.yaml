@@ -7,10 +7,10 @@ data:
   Caddyfile: |
 
 
-    jenkins.zymran.com {
+    jenkins.tezbot.kz {
         reverse_proxy http://10.201.0.5:8080
     }
-    vault1.poc.zymran.com {
+    vault1.poc.tezbot.kz {
         reverse_proxy http://10.201.0.5:8200
     }
 
